@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 75 1160 270" width="1160" height="270" role="img" aria-label="One executor turn: the prompt is built, the model replies; a search block triggers web_search_tool and the results go back into the prompt, up to 3 rounds; then listed packages are added with uv add, the script is run with uv run, and the result is appended as the executor&#x27;s message.">
+<title>One executor turn: the prompt is built, the model replies; a search block triggers web_search_tool and the results go back into the prompt, up to 3 rounds; then listed packages are added with uv add, the script is run with uv run, and the result is appended as the executor&#x27;s message.</title>
+
+<style>
+  .bg { fill: #ffffff; }
+  .frame { fill: none; stroke: #8c959f; stroke-width: 1.25; stroke-dasharray: 6 4; }
+  .box { fill: #f6f8fa; stroke: #8c959f; stroke-width: 1.25; }
+  .hub { fill: #ddf4ff; stroke: #0969da; stroke-width: 1.75; }
+  .exe { fill: #fff8c5; stroke: #9a6700; stroke-width: 1.75; }
+  .tool { fill: #ffffff; stroke: #9a6700; stroke-width: 1.25; }
+  .ok { fill: #dafbe1; stroke: #1a7f37; stroke-width: 1.75; }
+  .warn { fill: #fff1e5; stroke: #bc4c00; stroke-width: 1.5; }
+  .file { fill: #ffffff; stroke: #8c959f; stroke-width: 1.25; }
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .t { fill: #1f2328; font-size: 14px; font-weight: 600; }
+  .s { fill: #59636e; font-size: 12.5px; }
+  .lb { fill: #59636e; font-size: 12px; font-style: italic; }
+  .hd { fill: #59636e; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; }
+  .m { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .ln { fill: none; stroke: #59636e; stroke-width: 1.5; }
+  .ln-ok { fill: none; stroke: #1a7f37; stroke-width: 1.75; }
+  .ln-warn { fill: none; stroke: #bc4c00; stroke-width: 1.5; }
+  .dash { stroke-dasharray: 5 4; }
+  .ah { fill: #59636e; } .ah-ok { fill: #1a7f37; } .ah-warn { fill: #bc4c00; }
+  @media (prefers-color-scheme: dark) {
+    .bg { fill: #0d1117; }
+    .frame { stroke: #656c76; }
+    .box { fill: #151b23; stroke: #656c76; }
+    .hub { fill: #0c2d6b; stroke: #4493f8; }
+    .exe { fill: #3a2d05; stroke: #d29922; }
+    .tool { fill: #0d1117; stroke: #d29922; }
+    .ok { fill: #04260f; stroke: #3fb950; }
+    .warn { fill: #3d1d08; stroke: #f0883e; }
+    .file { fill: #0d1117; stroke: #656c76; }
+    .t { fill: #e6edf3; }
+    .s, .lb, .hd { fill: #9198a1; }
+    .ln { stroke: #9198a1; } .ln-ok { stroke: #3fb950; } .ln-warn { stroke: #f0883e; }
+    .ah { fill: #9198a1; } .ah-ok { fill: #3fb950; } .ah-warn { fill: #f0883e; }
+  }
+</style>
+<defs>
+  <marker id="ah" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+  <marker id="ah-ok" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto"><path class="ah-ok" d="M0,0 L10,5 L0,10 z"/></marker>
+  <marker id="ah-warn" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path class="ah-warn" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs>
+<rect class="bg" x="0" y="75" width="1160" height="270" rx="12"/>
+<rect class="box" x="20" y="115" width="160" height="70" rx="10"/>
+<text class="t" x="100.0" y="136.5" text-anchor="middle">build prompt</text>
+<text class="s" x="100.0" y="154.5" text-anchor="middle">exe.md, rules, files,</text>
+<text class="s" x="100.0" y="172.5" text-anchor="middle">results, dialogue</text>
+<path class="ln" d="M180,150 L212,150" marker-end="url(#ah)"/>
+<rect class="exe" x="212" y="115" width="160" height="70" rx="10"/>
+<text class="t" x="292.0" y="136.5" text-anchor="middle">model reply</text>
+<text class="s m" x="292.0" y="154.5" text-anchor="middle">gemma-4-31b-it</text>
+<text class="s" x="292.0" y="172.5" text-anchor="middle">streamed</text>
+<path class="ln" d="M372,150 L404,150" marker-end="url(#ah)"/>
+<polygon class="box" points="404,150 484,100 564,150 484,200"/>
+<text class="t" x="484" y="146" text-anchor="middle">search</text>
+<text class="t" x="484" y="164" text-anchor="middle">block?</text>
+<path class="ln" d="M564,150 L596,150" marker-end="url(#ah)"/>
+<text class="lb" x="580" y="142" text-anchor="middle">no</text>
+<rect class="box" x="596" y="115" width="160" height="70" rx="10"/>
+<text class="t" x="676.0" y="136.5" text-anchor="middle">add packages</text>
+<text class="s m" x="676.0" y="154.5" text-anchor="middle">dependency_tool</text>
+<text class="s" x="676.0" y="172.5" text-anchor="middle">only if listed</text>
+<path class="ln" d="M756,150 L788,150" marker-end="url(#ah)"/>
+<text class="lb" x="772" y="142" text-anchor="middle">ok</text>
+<rect class="box" x="788" y="115" width="160" height="70" rx="10"/>
+<text class="t" x="868.0" y="136.5" text-anchor="middle">run script</text>
+<text class="s m" x="868.0" y="154.5" text-anchor="middle">code_tool</text>
+<text class="s" x="868.0" y="172.5" text-anchor="middle">uv run, 5 min</text>
+<path class="ln" d="M948,150 L980,150" marker-end="url(#ah)"/>
+<rect class="exe" x="980" y="115" width="160" height="70" rx="10"/>
+<text class="t" x="1060.0" y="136.5" text-anchor="middle">append message</text>
+<text class="s" x="1060.0" y="154.5" text-anchor="middle">searches, exit code,</text>
+<text class="s" x="1060.0" y="172.5" text-anchor="middle">stdout, stderr</text>
+<text class="lb" x="1140" y="100" text-anchor="end">→ turn returns to orchestrator</text>
+<path class="ln" d="M484,200 L484,258" marker-end="url(#ah)"/>
+<text class="lb" x="492" y="233" text-anchor="start">yes, rounds left</text>
+<rect class="tool" x="404" y="258" width="160" height="70" rx="10"/>
+<text class="t m" x="484.0" y="279.5" text-anchor="middle">web_search_tool</text>
+<text class="s" x="484.0" y="297.5" text-anchor="middle">≤ 3 queries per round</text>
+<text class="s" x="484.0" y="315.5" text-anchor="middle">OpenRouter web plugin</text>
+<path class="ln" d="M404,293 L100,293 L100,185" marker-end="url(#ah)"/>
+<text class="lb" x="252" y="285" text-anchor="middle">results added to the prompt</text>
+<path class="ln-warn dash" d="M676,185 L676,240 L1060,240 L1060,185" marker-end="url(#ah-warn)"/>
+<text class="lb" x="868" y="232" text-anchor="middle">uv add failed → script skipped</text>
+</svg>

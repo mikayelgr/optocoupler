@@ -1,0 +1,19 @@
+[project]
+name = "photonicsai-solver-chain"
+version = "0.1.0"
+description = "Multi-agent LangGraph system (orchestrator, scientist, general, executor) that solves the Silverbox PINN task with OpenRouter models"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "langchain>=1.4.3",
+    "langgraph>=1.2.14",
+    "langchain-openrouter",
+    "pymupdf>=1.28.2",
+    "rich>=15.0.0",
+    "numpy>=2.5.3",
+    "torch>=2.14.1",
+    "scipy>=1.18.1",
+    "h5py>=3.16.0",
+    "requests>=2.34.2",
+    "nonlinear-benchmarks>=1.0.1",
+]
