@@ -1,166 +1,337 @@
 # Photonics AI Solver Chain
 
-A multi-agent [LangGraph](https://github.com/langchain-ai/langgraph) system that solves Task 5 of the PhotonicsAI homework: fitting a neural-network ODE model to the Silverbox oscillator and reporting a free-run test RMSE. Four roles share one dialogue: an orchestrator, a scientist, a general agent and an executor. All of them use models served through [OpenRouter](https://openrouter.ai/). The executor is the only role that writes and runs code, and the run ends with a Markdown report in `OUTPUT.md`. This is Task 6 of the same homework. Homework 2, Task 1 extends it with a human-in-the-loop stop: the orchestrator can pause the graph and ask you before it continues (see [Human-in-the-loop](#human-in-the-loop)).
+You type a request, and a team of four AI roles works on it together in one shared dialogue:
 
-![Architecture: task.pdf enters the LangGraph loop as the first message; the orchestrator hands each turn to the scientist, general agent or executor, which append a reply and return the turn; only the executor uses tools; the run ends in the summarizer, which writes OUTPUT.md.](docs/architecture.svg)
+| Role             | What it does                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| **orchestrator** | Reads the dialogue and decides who acts next                                          |
+| **scientist**    | Writes plans: equations, methods, numbered steps. No code                             |
+| **general**      | Explains concepts, data and errors. No code                                           |
+| **executor**     | The only role with tools: runs scripts, searches the web, and drives the light bench |
 
-*Every turn passes through the orchestrator. Each role reads the whole dialogue, appends one message and hands the turn back. Only the executor touches the outside world: web search, `uv add` and running scripts in the run's working directory. However the run ends, the summarizer writes `OUTPUT.md`.*
+It is built on [LangGraph](https://github.com/langchain-ai/langgraph), every model runs through [OpenRouter](https://openrouter.ai/), and every run ends with a report in `OUTPUT.md`.
+
+The project covers three PhotonicsAI homework sheets, kept in `task/`:
+
+| Homework              | Sheet                              | What it adds |
+| --------------------- | ---------------------------------- | ------------ |
+| Homework 1, Tasks 5–6 | [`task/task1.pdf`](task/task1.pdf) | The four-role team. Main task: fit a neural-network ODE model to the Silverbox data and report a free-run test RMSE |
+| Homework 2, Task 1    | [`task/task2.pdf`](task/task2.pdf) | A [human stop](#human-stop): the team asks you before risky steps |
+| Homework 2, Task 2    | [`task/task2.pdf`](task/task2.pdf) | The simulated DMD focusing bench. It lives in a separate codebase |
+| Homework 3            | [`task/task3.pdf`](task/task3.pdf) | [Hardware in the loop](#light-bench): an LED and a light sensor, reached through an MCP server |
+
+The team reads a sheet only when your request refers to it, so you can ask it anything.
+
+## Setup
+
+You need Python 3.13 and an `OPENROUTER_API_KEY`: every model call goes through OpenRouter, web search included. Every package the project needs is listed in [`pyproject.toml`](pyproject.toml), so install from it with pip or with uv.
+
+**With pip**, in a virtual environment:
+
+```sh
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip        # --group below needs pip 25.1 or later
+pip install -e . --group dev     # the project and its packages; --group dev adds pytest
+```
+
+**With [uv](https://docs.astral.sh/uv/)** (`brew install uv`, or `curl -LsSf https://astral.sh/uv/install.sh | sh`), which also installs Python 3.13 if you don't have it and uses the exact versions pinned in `uv.lock`:
+
+```sh
+uv sync                          # or let the first `uv run` do it
+```
+
+The executor follows the way you started the pipeline. Its scripts run on the same Python. When a script needs a package that isn't installed, it is added with `uv add` under `uv run`, which records it in `pyproject.toml` and `uv.lock`. Otherwise it is installed with `pip install` into your environment.
+
+Two optional inputs live in `task/`:
+
+- **`task/*.pdf`**: the homework sheets. A request can refer to them, or `--task` can make one the request.
+- **`task/SNLS80mV.mat`**: the Silverbox data, from `SilverboxFiles.zip` on [nonlinearbenchmark.org](https://www.nonlinearbenchmark.org/). Without it, the executor finds the data on the web.
+
+**The light bench** needs a Raspberry Pi Pico with an LED, and an Android phone running phyphox. Follow **[docs/bench-setup.md](docs/bench-setup.md)**; each step there ends with a check.
+
+![The light bench: the computer drives the Pico over USB serial, the Pico dims the LED, the LED shines on the phone's sensor, and phyphox sends readings back over adb or Wi-Fi.](docs/bench-hardware.svg)
+
+The LED is wired from pin 20 (GP15) through a 220–330 Ω resistor, and back to a GND pin:
+
+![A Raspberry Pi Pico seen from the top, USB at the top edge: pin 20 (GP15), the bottom pin on the left side, goes through the resistor to the LED's long leg (anode); the short leg (cathode) goes back to pin 18 (GND), two pins above.](docs/pico-wiring.svg)
+
+- **Automatic with `--bench`:** the MCP server starts and stops with the run. It finds the Pico, opens its serial port and starts the phyphox measurement. Don't run `mcp dev` or `mcp run` at the same time, or they hold the serial port.
+- **Yours, before each session:** keep phyphox open with the screen on, and run `adb forward tcp:8080 tcp:8080` (again whenever the phone reconnects). Or use Wi-Fi with `--phyphox-url`.
 
 ## Quick start
 
+Once it's installed, from the project root:
+
 ```sh
-export OPENROUTER_API_KEY=...         # required
-uv run python .                       # stop after 8 orchestrator decisions (Task 6)
-uv run python . --max-decisions 0     # no limit: keep going until a verified test RMSE
-uv run python . --request "..."       # your own request; task.pdf is given as background
+export OPENROUTER_API_KEY=...       # needed for every run
+python .                            # asks for your request (with uv: uv run python .)
+python . --bench                    # the same, with the light bench connected (set it up first)
 ```
 
-Run the commands from the project root, where `task.pdf` and `SNLS80mV.mat` live. Press Ctrl+C at any time to stop. You still get a report of the work done so far.
+The commands in this README are written for an activated environment. With uv, put `uv run` in front of them instead.
 
-## Requirements
+A prompt lists the task files (and, with `--bench`, the bench tools). Type your request and press Enter.
 
-| Requirement | Why |
+| You press | What happens |
 | --- | --- |
-| [uv](https://docs.astral.sh/uv/) | Runs the pipeline, and is also called by it: scripts run with `uv run`, and packages are added with `uv add` |
-| Python 3.13 (`.python-version`, `requires-python >= 3.13`) | uv installs it if it's missing |
-| `OPENROUTER_API_KEY` | Every model call, including web search, goes through OpenRouter |
-| `task.pdf` in the current directory | The task text. If it's missing, a one-line Task 5 prompt is used instead |
-| `SNLS80mV.mat` in the project root | The Silverbox data (from `SilverboxFiles.zip` on [nonlinearbenchmark.org](https://www.nonlinearbenchmark.org/)). If it's missing, the executor has to find the data on the web |
+| Enter on an empty line | Nothing: empty lines are ignored |
+| Ctrl+C at the request prompt | Quits without running anything |
+| Ctrl+C while a step runs | Cancels that step only, and you type a note that steers the team ([Cancel and steer](#cancel-and-steer)) |
+| Ctrl+C at any prompt during a run | Stops the run. You still get the transcript and the report |
 
-Python dependencies (`pyproject.toml`, locked in `uv.lock`):
+Other ways to start:
 
-| Package | Used by |
-| --- | --- |
-| `langgraph`, `langchain`, `langchain-openrouter` | The graph, messages and OpenRouter chat models |
-| `pymupdf` | Extracting the text of `task.pdf` |
-| `rich` | Live terminal panels and tables |
-| `numpy`, `torch`, `scipy`, `h5py`, `requests`, `nonlinear-benchmarks` | Scripts the executor writes. Earlier runs added these with `uv add`; the pipeline itself doesn't import them |
+```sh
+python . --task task1                                # Homework 1's sheet is the request
+python . --request "What does a lux meter measure?"  # the request as a flag, for scripted runs
+python . --max-decisions 8                           # stop after 8 decisions, as Homework 1, Task 6 asks (default: no limit)
+```
 
-## Capabilities
+## How it works
 
-- **Structured routing.** The orchestrator returns a typed decision (`next_role`, `stop_kind`, `pending_step`, `instruction`, `question`, `reason`) using JSON-schema structured output. It is told its decision number, the limit, and which files are in the working directory.
-- **Shared dialogue state.** The state is a list of `{role, text}` messages. Each node returns only its new message, and LangGraph appends it.
-- **Finish guard.** A `finish` is only accepted once the latest executor turn exited with code 0 and printed an RMSE value.
-- **Decision limit.** The default is 8 decisions, as Task 6 requires. `--max-decisions 0` removes the limit.
-- **Real code execution.** Every executor script is a new numbered file in a per-run working directory. It runs there with `uv run` in this project's environment, with a 5-minute timeout.
-- **Dependency tool.** The executor can list PyPI packages. They're checked against a requirement pattern and installed with `uv add`.
-- **Web search.** If data is missing, the executor can search through OpenRouter's web plugin and download what it finds into the working directory.
-- **Data provisioning.** At startup, `SNLS80mV.mat` is checked for a real MAT-file header and copied into the working directory. Every role's prompt then says where it is and how to load it.
-- **Resilience.** Every model call is retried indefinitely with exponential backoff, and a failing orchestrator model is recreated before retrying. The report is still written after the decision limit, Ctrl+C, or a graph error.
-- **Live terminal UI.** Streamed output appears in `rich` panels, orchestrator decisions are shown as tables, and executor runs are marked OK or FAIL.
+![How a run works: the request is scoped, the orchestrator hands each turn to a role or stops to ask you, Ctrl+C in a step leads to a steering note, and the summarizer writes OUTPUT.md.](docs/architecture.svg)
 
-## Human-in-the-loop
+Every turn goes through the orchestrator. Each role reads the whole dialogue, adds one message and hands the turn back.
 
-The orchestrator has a fifth destination, `human`, beside `scientist`, `general`, `executor` and `finish`. Choosing it is part of the same structured model call. The decision then also carries `stop_kind`, `pending_step` and `question`, and `reason` explains the stop in one sentence. There are no keyword lists or fixed rules. The orchestrator stops in two situations, which are described in `prompts/orc.md`:
+1. **Start.** The CLI creates a working directory: a new `$TMPDIR/photonics_*` folder (kept after the run), or `--workdir`. With `--bench`, it starts the bench server.
+2. **Request.** From the prompt, from `--request`, or from the sheets named with `--task`.
+3. **Scope.** One model call decides which sheets the request needs and which result it must end with ([Request scope](#request-scope)).
+4. **Turns.** The orchestrator picks the next role and writes its instruction. It sees the dialogue (its last ~45k characters), the required result, its decision number (and the limit, if one is set), and the files in the working directory. The role then reads its prompt from `prompts/` plus the whole dialogue, and replies.
+5. **End.** On an accepted `finish`, at the decision limit (if `--max-decisions` sets one), or on Ctrl+C at a prompt. The dialogue is saved to `transcripts/<thread>.md`, and a summarizer writes `OUTPUT.md` with four sections: Request, Approach, Results and Conclusion.
+
+Under the hood:
+
+- The graph state is a list of `{role, text}` messages plus the request scope. Each node returns only its new messages, and LangGraph appends them.
+- Every model call is retried with exponential backoff until it succeeds. A failing structured model is recreated before the retry.
+
+### Request scope
+
+Before the first decision, one structured call (`RequestScope`) reads your request. Its answer is shown in a "Request scope" table.
+
+**Which sheets (`tasks`).** The call sees the start of every sheet in `task/`, and picks the ones the request works on or refers to through something only that sheet defines (a homework or task number, its data, its model).
+
+- Each picked sheet goes into the dialogue as a `task` message, before your request. The team never sees the others.
+- Data that comes with a sheet is copied into the working directory, and every prompt gets a note on how to load it. `TASK_DATA` in `chain/config.py` maps `task1.pdf` to `SNLS80mV.mat`.
+
+**Which result (`result` and `quantity`).** What the final answer must rest on:
+
+| `result` | Meaning | Example request |
+| --- | --- | --- |
+| `script` | A value a script prints, labelled `quantity` (such as `RMSE`) | "Solve Homework 1, Task 5 with a smaller network." |
+| `bench` | A light reading from the bench | "Make it 200 lux." |
+| `none` | An explanation, a plan, or an answer from knowledge | "What does a lux meter measure?" |
+
+The result sets the [finish check](#how-a-run-ends), the "Required Result" note in the orchestrator's prompt, the label the executor prints, and the fallback step.
+
+- `--task NAME` (for example `--task task1`; repeatable) sets the sheets instead of the call. `--task none` gives none.
+- With no request, the sheets named with `--task` are the request: `python . --task task3 --bench`.
+- The scope is checked again after you answer an ambiguous question or send a steering note. If you choose "explain the error" over "measure it", the run no longer needs a printed number to finish.
+
+### Human stop
+
+Besides `scientist`, `general`, `executor` and `finish`, the orchestrator can choose `human`. The same structured decision then also carries `stop_kind`, `pending_step`, `question` and a one-sentence `reason`. There are no keyword lists or fixed rules; `prompts/orc.md` describes the two kinds of stop:
 
 | Stop | When | After your reply |
 | --- | --- | --- |
-| **Ambiguous query** (`stop_kind: ambiguous_query`) | The latest request has several readings that would send the work to different roles, or change the number reported. The question lists the readings as numbered options | Your reply is appended to the dialogue with role `human`, and the orchestrator's next decision follows the reading you chose |
-| **Hard decision** (`stop_kind: hard_decision`) | The next step would run the coding tool, overwrite a result on disk (`pending_step: executor`), or end the dialogue and report a measurement (`pending_step: finish`). The question states the step | **Accept:** the step runs right away, the executor or the end of the run, with no new decision. **Refuse:** a `system` message records that the step did not run, and the turn goes back to the orchestrator |
+| **Ambiguous query** (`stop_kind: ambiguous_query`) | The request has several readings that would send the work to different roles or change the number reported. The question lists them as options | Your reply joins the dialogue as role `human`, the request is re-scoped, and the next decision follows your reading |
+| **Hard decision** (`stop_kind: hard_decision`) | The next step would run the executor (any script or bench step) or overwrite a result on disk (`pending_step: executor`), or end the run and report a measurement (`pending_step: finish`) | **Accept:** the step runs at once, with no new decision. **Refuse:** a `system` message records that it didn't run, and the turn goes back to the orchestrator |
 
-How the stop works:
+- **Pause.** The graph is compiled with a checkpointer (`InMemorySaver`), and each run is one thread (`--thread`, or a generated id). The `human` node calls LangGraph's `interrupt()`, so the graph pauses with its state saved, and the question appears in a red panel.
+- **Resume.** Your reply resumes the same thread with `Command(resume=reply)`. An empty reply asks again.
+- **Accept or refuse.** On a hard decision, a small structured call (`HumanVerdict`) decides whether your free-text reply accepts. "No, keep the old file" and "use 3 epochs instead" are refusals.
+- **Count.** Each stop counts as one orchestrator decision.
 
-- **Pause.** The graph is compiled with a checkpointer (`InMemorySaver`), and every run is one thread (`--thread`, or a generated id). The `human` node calls LangGraph's `interrupt()`, so the graph pauses there with its state saved on that thread, and the question is shown in a red panel.
-- **Resume.** Your reply resumes the same thread with `Command(resume=reply)`. An empty reply asks again, and Ctrl+C stops the run and summarizes.
-- **Accept or refuse.** On a hard decision, a small structured model call (`HumanVerdict`) reads your free-text reply and decides whether you accepted. "No, keep the old file" or "use 3 epochs instead" count as refusals.
-- **Decision count.** A stop counts as one orchestrator decision.
-- **Finish guard.** If the orchestrator keeps trying to finish without a verified RMSE, the fallback is a hard-decision stop asking to run the executor, not a silent executor run.
-
-Every run writes the full dialogue to `transcripts/<thread>.md`. It shows each question (inside the orchestrator message), your reply, and the message that follows.
-
-Examples for the two runs in Homework 2, Task 1:
+The two runs for Homework 2, Task 1 use `--workdir`, which keeps a working directory between runs, so a later request can see (and could overwrite) an earlier one's results:
 
 ```sh
 # (a) ambiguous: free-run vs one-step-ahead error, or a new measurement vs an existing one
-uv run python . --workdir runs/silverbox --request "What is the Silverbox model's error?"
+python . --max-decisions 8 --workdir runs/silverbox --request "What is the Silverbox model's error?"
 
-# (b) hard decision: the step runs the coding tool (and overwrites results if any are on disk).
-#     Refuse the first question, then accept the next one.
-uv run python . --workdir runs/silverbox --request "Retrain the Silverbox model and report the new test RMSE."
+# (b) hard decision: retraining runs a script and would overwrite results. Refuse once, then accept
+python . --max-decisions 8 --workdir runs/silverbox --request "Retrain the Silverbox model and report the new test RMSE."
 ```
 
-`--workdir` keeps the working directory between runs, so a later request can see, and could overwrite, results from an earlier one. Script numbers continue from the highest one already there.
+### Cancel and steer
 
-## How a run works
+Ctrl+C while a step runs cancels that step, not the run: a reply as it streams, the orchestrator's decision, a script, a web search or a bench call.
 
-1. **Startup.** The script parses `--max-decisions` and creates a fresh working directory (`$TMPDIR/photonics_*`, which is kept after the run). It copies `SNLS80mV.mat` there and adds a "Provided Data" note to every role's prompt.
-2. **Input.** The text of `task.pdf` becomes the first message, with role `user`.
-3. **Routing.** The orchestrator reads the dialogue (trimmed to the last ~45k characters), its decision number and the working-directory listing. It then picks the next role and writes that role's instruction.
-4. **Turns.** The scientist, general agent or executor reads its prompt from `prompts/` plus the full dialogue, appends one message and hands the turn back.
-5. **End.** The run ends on an accepted `finish`, at the decision limit, or on Ctrl+C. The summarizer then turns the scientist and executor messages into a report with four sections: Task Summary, Methodology, Results and Conclusion. It's saved as `OUTPUT.md` in the current directory.
+![Cancel and steer: Ctrl+C drops the running step, a system message records it, you type a note, the request is re-scoped, and the orchestrator decides next. Ctrl+C again, or no decision left, ends the run.](docs/cancel-steer.svg)
+
+1. **Cancel.** The step stops and its reply is discarded. A running script is killed along with everything it started; files it already wrote and LED settings it already made stay. Bench calls a cancelled script made still go into the dialogue as a `hardware` message.
+2. **Note.** A `system` message records what was cancelled, and a yellow panel asks what the team should do instead.
+3. **Steer.** Your note joins the dialogue as role `human`, the request is re-scoped, and the orchestrator decides next. `prompts/orc.md` tells it to follow the note.
+
+Ctrl+C ends the run instead when you press it at a prompt (the steer prompt too, so Ctrl+C twice stops), or, with `--max-decisions`, when the limit is reached and no decision is left to follow a note. A note isn't a decision; the orchestrator's next decision counts as usual.
+
+How it works:
+
+- When a node is interrupted, LangGraph keeps the checkpoint from before that step. `run_thread` writes the note with `update_state(..., as_node="cancel")`, which drops the cancelled step so it never runs again. The `cancel` node never runs itself; its edge leads to the `steer` node, which pauses with `interrupt()` like the human stop.
+- Scripts run in their own process group, and a cancel or a timeout kills the whole group, including any processes the script started.
+- The bench server runs in its own session, so Ctrl+C doesn't reach it and the serial port stays open.
 
 ### One executor turn
 
-![One executor turn: the prompt is built, the model replies; a search block triggers web_search_tool and the results go back into the prompt, up to 3 rounds; then listed packages are added with uv add, the script is run with uv run, and the result is appended as the executor's message.](docs/executor-turn.svg)
+![One executor turn: tool calls go to the hardware node, a search block runs a web search, a python block runs as a script after any packages are added, and a reply without code is a bench report or a failure.](docs/executor-turn.svg)
 
-*The executor's model talks through fenced blocks. A ```` ```search ```` block (up to 3 queries) triggers a web search, and the results are added to the prompt for the next round. A ```` ```dependencies ```` block lists packages to install. A ```` ```python ```` block is the script. After 3 search rounds, the model is told to write the script. A failed `uv add` or a reply without a Python block is reported as a failure, and nothing is run.*
+| The reply contains | What happens |
+| --- | --- |
+| Tool calls (with `--bench`) | A [hardware turn](#light-bench), then the executor is asked again |
+| A ` ```search ` block (up to 3 queries) | A web search. The results go into the prompt and the executor is asked again. After 3 rounds it's told to write the script |
+| A ` ```dependencies ` block | Those packages are installed: `uv add` under `uv run`, otherwise `pip install`. If that fails, the script doesn't run |
+| A ` ```python ` block | Saved as a new numbered file in the working directory and run there on the pipeline's Python, with a 5-minute limit. It can use `bench_tools` |
+| None of these | Nothing runs. After bench calls in the same turn this is the executor's report; otherwise it's a failure |
 
 ### How a run ends
 
-![How a run ends: a finish decision is accepted only if the latest executor run printed an RMSE, otherwise the orchestrator is re-asked and then overridden to the executor; after each role turn the decision limit is checked; finish, the decision limit and Ctrl+C all lead to the summarizer and OUTPUT.md.](docs/termination.svg)
+![How a run ends: a finish is accepted only if the latest executor turn holds the required result; otherwise the orchestrator is asked again, then you are asked whether to run the executor. A decision limit, if set, and Ctrl+C at a prompt also end the run.](docs/termination.svg)
 
-*An RMSE counts as "verified" when the most recent executor message shows `Exit code: 0` and its stdout contains "RMSE" followed by a number. If the orchestrator chooses `finish` without one, it's asked again with a rejection note, up to 2 times. If it still chooses `finish`, the turn goes to the executor. The decision limit is checked after each role's turn, so the last decision's role still runs.*
+A `finish` is accepted only when the most recent executor turn holds the required result:
 
-## Configuration
+| Scope `result` | The most recent executor turn must… |
+| --- | --- |
+| `script` | show `Exit code: 0`, with the `quantity` and a number in its output |
+| `bench` | have a successful `read_lux` as its last bench call |
+| `none` | nothing: the run can always finish |
 
-Command-line option:
+If it doesn't, the orchestrator is asked again with a rejection note, up to 2 times. If it still chooses `finish`, the decision becomes a hard-decision stop asking whether to run the executor.
+
+With `--max-decisions`, the limit is checked after each turn, so the last decision's role still runs.
+
+## Light bench
+
+With `--bench`, the executor drives a light bench: an LED on a Raspberry Pi Pico, measured in lux by phyphox on an Android phone. [`bench/server.py`](bench/server.py) is an MCP server with three tools: `set_led(percent)`, `led_off()` and `read_lux()`. The executor reaches them in two ways:
+
+![The bench's software path: tool calls go through the hardware node, a script's bench_tools calls through a local HTTP bridge; both use one MCP session to bench/server.py, which drives the Pico over USB serial and reads the phone over HTTP.](docs/bench-overview.svg)
+
+**Tool calls** suit a few steps of adjusting and measuring. When a reply calls tools, the `hardware` node:
+1. runs the calls one by one, in order;
+2. writes each call and its result to the dialogue as a `hardware` message;
+3. hands the turn back to the executor, which reads the result and decides again.
+
+A reply without tool calls is the executor's report and ends its turn. One executor turn can make up to 12 hardware turns (`HARDWARE_ROUNDS`).
+
+**Scripts** suit sweeps, many measurements, or timed patterns such as pulsing the LED. A script does `import bench_tools`:
+
+```python
+import bench_tools
+bench_tools.led_off()
+bench_tools.set_led(40)        # "LED set to 40% (Pico: OK 40)"
+lux = bench_tools.read_lux()   # 19.0
+```
+
+- [`bench/bench_tools.py`](bench/bench_tools.py) uses only the standard library. With `--bench`, it is copied into the working directory.
+- Its calls go into the same MCP session through a bridge: an HTTP endpoint on `127.0.0.1` with a random token, passed to the script in `BENCH_URL` and `BENCH_TOKEN`.
+- Every call a script makes is added to the dialogue as a `hardware` message after the script's result. The next turn reads it, and the finish check counts a final `read_lux`.
+
+### Timing
+
+Nothing in the bench waits. `set_led` and `led_off` return as soon as the Pico replies, in a few milliseconds (the bridge and the MCP session add under 1 ms), and `read_lux` returns the phone's latest value at once. So a script sets its own pace: it can pulse or fade the LED as fast as it updates it.
+
+### Keeping the team on the tools
+
+- Only the executor gets the tools, bound to its model with `bind_tools`. The others learn about the bench from notes in their prompts:
+  - **executor:** the bench tools come before the script format, and no other Python module reaches the bench;
+  - **orchestrator:** send bench steps straight to the executor, with the tools named;
+  - **scientist and general:** the bench is reached only through `set_led`, `led_off` and `read_lux`.
+- For a bench request, the executor's first reply in a turn must call a tool (`tool_choice="required"`), so it can't open with a script that guesses at a library. The model still picks the tool and its values. Later replies can be more tool calls, a `bench_tools` script, or the report.
+- If a request needs the bench but the run started without `--bench`, the CLI offers to connect it. Saying no runs nothing.
+
+Also:
+
+- **One session.** The pipeline starts the server over stdio and keeps one session open for the whole run, so the Pico's serial port stays open between calls. The graph is synchronous, so the session runs on its own event loop in a background thread.
+- **Same human stop.** A bench step is an executor step, so it needs your approval first.
+- **Fails fast.** If the server can't start (no Pico, phyphox unreachable), the run stops before any model is called.
+
+A bench request, start to finish (the run's transcript records the real calls and readings in this order):
+
+1. The CLI starts the MCP server, which opens the Pico's serial port and starts phyphox. Then the request prompt opens.
+2. The request is scoped (`result: bench`), and the orchestrator asks you before the executor runs.
+3. The executor's tool calls go through the hardware node and the MCP server to the Pico and the phone, and the results come back into the dialogue. This repeats until its report.
+4. Finishing with the measured lux is a second question to you. Then the CLI closes the session and writes the transcript and `OUTPUT.md`.
+
+Requests to try (start `python . --bench`, then type one; each is a separate run):
+
+- Make it 200 lux.
+- Turn the LED off and tell me the light level in the room.
+- Measure the light level at 0, 25, 50, 75 and 100 percent.
+- Find the lowest LED setting that gives at least 100 lux.
+
+## Reference
+
+### Flags
+
+Run `python . --help` to see them in the terminal.
 
 | Flag | Default | Effect |
 | --- | --- | --- |
-| `--max-decisions N` | `8` | Maximum orchestrator decisions, including stops for the human. `0` means no limit |
-| `--request TEXT` | none | Your request to the orchestrator. `task.pdf` is then given as background before it. Without it, `task.pdf` is the request |
-| `--workdir PATH` | new temp dir | Working directory to use and keep across runs |
-| `--thread ID` | generated | LangGraph thread id for the checkpointer. It is also the transcript file name |
+| `--request TEXT` | asks at the prompt | The request, for scripted runs |
+| `--task NAME` | decided from the request | A sheet from `task/` (`task1` or `task1.pdf`; repeatable), or `none`. With a request it is background; without one, it is the request |
+| `--max-decisions N` | `0` (no limit) | Maximum orchestrator decisions, counting stops for you. `0` means no limit. Homework 1, Task 6 uses `8` |
+| `--workdir PATH` | a new temp folder | Working directory to use and keep across runs |
+| `--thread ID` | generated | LangGraph thread id; also the transcript's file name |
+| `--bench` | off | Start `bench/server.py` and give its tools to the executor |
+| `--pico-port PORT` | `$PICO_PORT`, else auto-detect | The Pico's serial port, for example `/dev/cu.usbmodem31201` or `/dev/ttyACM0` |
+| `--phyphox-url URL` | `$PHYPHOX_URL`, else `http://localhost:8080` | phyphox's address on the phone |
 
-The other settings are constants in `__main__.py`:
+The device settings are never hard-coded. The bench's own scripts take the same settings:
 
-| Setting | Default | Effect |
+| Setting | Pipeline flag | Bench script flag | Environment variable | Default |
+| --- | --- | --- | --- | --- |
+| Pico serial port | `--pico-port` | `--port` | `PICO_PORT` | The connected Pico, found by its USB vendor ID |
+| phyphox address | `--phyphox-url` | `--url` (phone script), `--phyphox-url` (server) | `PHYPHOX_URL` | `http://localhost:8080`, the adb forward |
+
+### Settings
+
+| Setting | Where | Default |
 | --- | --- | --- |
-| `WEB_SEARCH_ROUNDS` | `3` | Search rounds the executor may use per turn (up to 3 queries per round) |
-| `FINISH_REJECTIONS` | `2` | Re-asks after an unjustified `finish` before the turn is sent to the executor |
-| `code_tool(timeout=...)` | `300` s | Time limit for one executor script |
-| `dependency_tool(timeout=...)` | `600` s | Time limit for one `uv add` |
-| `plugins=[{"id": "web", "max_results": 5}]` | 5 results | Results per web search |
-| `_trim_dialogue(max_chars=...)` | 45,000 chars | How much of the dialogue the orchestrator sees (oldest messages are dropped first) |
-| `ORCHESTRATOR_MAX_CONTEXT` | 200,000 | `max_tokens` for the orchestrator model |
-| `raw_findings[:30000]` | 30,000 chars | How much scientist/executor text the summarizer sees |
-| `_workdir_listing(max_entries=...)` | 50 | Files listed from the working directory |
-| `result[:1500]` | 1,500 chars | Search result text kept in the executor's message |
-| `stream_with_retry(max_backoff=...)` | 300 s | Longest wait between retries (`2**attempt` seconds; attempts are unlimited) |
-| `DATA_FILE` | `SNLS80mV.mat` | Data file copied into the working directory |
-| `recursion_limit` | 10,000 | LangGraph's safety limit on graph steps |
+| `MODEL`, the OpenRouter model for every call | `chain/config.py` | `google/gemma-4-31b-it` |
+| `MAX_DECISIONS`, the default for `--max-decisions` | `chain/config.py` | 0 (no limit) |
+| `WEB_SEARCH_ROUNDS`, search rounds per executor turn (up to 3 queries each) | `chain/config.py` | 3 |
+| `HARDWARE_ROUNDS`, hardware turns per executor turn | `chain/config.py` | 12 |
+| `FINISH_REJECTIONS`, re-asks after an unjustified `finish` | `chain/config.py` | 2 |
+| `ORCHESTRATOR_MAX_CONTEXT`, `max_tokens` for structured calls | `chain/config.py` | 200,000 |
+| Script and package-install time limits | `code_tool`, `dependency_tool` in `chain/tools.py` | 300 s, 600 s |
+| Results per web search | `web_search_tool` in `chain/tools.py` | 5 |
+| Dialogue the orchestrator sees (oldest messages dropped first) | `_trim_dialogue` in `chain/orchestrator.py` | 45,000 chars |
+| Executor reply formats | `EXECUTOR_CODE_FORMAT`, `EXECUTOR_BENCH_FORMAT` in `chain/executor.py` | |
+| LED pin | `LED_PIN` in `firmware/main.py` | GP15 |
 
-Role behaviour lives in the prompts, which you can edit: `prompts/orc.md`, `prompts/sci.md`, `prompts/gen.md` and `prompts/exe.md`. The executor's reply format (the `search`, `dependencies` and `python` blocks) is in `EXECUTOR_CODE_FORMAT` in `__main__.py`.
+Each role's behaviour lives in its prompt, which you can edit: `prompts/orc.md`, `sci.md`, `gen.md` and `exe.md`.
 
-## Models
+### Models
 
-Every call uses `google/gemma-4-31b-it` through OpenRouter. To change a model, edit the `model=` argument where that role's `ChatOpenRouter` is created.
+Every call uses `MODEL` through OpenRouter.
 
-| Role | Temperature | Call | Extras |
+| Call | Temperature | Kind | Notes |
 | --- | --- | --- | --- |
-| orchestrator | 0.2 | single call | `with_structured_output(OrchestratorDecision, method="json_schema")`, `context-compression` plugin, `max_tokens=200000` |
-| reply judge (hard decisions) | 0.2 | single call | same model setup as the orchestrator, with `HumanVerdict` as the schema |
-| scientist | 0.01 | streamed | none |
-| general | 0.01 | streamed | none |
-| executor | 0.01 | streamed | none |
-| web search (for the executor) | 0.01 | streamed | `web` plugin, 5 results (Exa-backed for this model, billed per request: [OpenRouter web search](https://openrouter.ai/docs/features/web-search)) |
-| summarizer | 0.2 | streamed | none |
+| orchestrator | 0.2 | structured | `OrchestratorDecision` schema (JSON schema), `context-compression` plugin |
+| request scope (at the start, after an answer to a question, after a steering note) | 0.2 | structured | `RequestScope` schema |
+| reply judge (hard decisions) | 0.2 | structured | `HumanVerdict` schema |
+| scientist, general | 0.01 | streamed | |
+| executor | 0.01 | streamed | With `--bench`, the bench tools through `bind_tools`; the model must support tool calling |
+| web search, for the executor | 0.01 | streamed | `web` plugin with 5 results, billed per request ([OpenRouter web search](https://openrouter.ai/docs/features/web-search)) |
+| summarizer | 0.2 | streamed | |
 
-## Project layout
+### Tests
 
-```
-__main__.py        graph, nodes, tools and CLI
-prompts/           role prompts: orc.md, sci.md, gen.md, exe.md
-docs/              diagrams used in this README
-task.pdf           homework text (input)
-SNLS80mV.mat       Silverbox data (input; copied into each run's working directory)
-OUTPUT.md          final report (generated, gitignored)
-transcripts/       one Markdown dialogue per thread (generated)
-pyproject.toml     dependencies; uv.lock pins them
+```sh
+pytest            # or: uv run pytest
 ```
 
-## Safety notes
+The tests need no API key and no hardware: scripted models stand in for OpenRouter, and [`tests/fake_bench_server.py`](tests/fake_bench_server.py) stands in for the bench. They cover:
 
-- The executor runs code written by a model, as your user and with network access. The script file lives in a temp directory, but nothing else is sandboxed.
-- `uv add` changes `pyproject.toml` and `uv.lock`, so check the diff after a run.
+- the MCP client, the hardware loop, and the forced first tool call;
+- `bench_tools` scripts and the bridge, including a wrong token;
+- that no bench server call waits;
+- the finish check for each kind of scope;
+- request scoping, its overrides, and re-scoping after an answer;
+- cancelling a step with Ctrl+C and steering with a note, a cancelled script's bench calls, and Ctrl+C at the decision limit;
+- the request prompt, and the offer to connect the bench.
+
+### Safety
+
+- The executor runs code written by a model, as your user and with network access. Scripts are written to the working directory, but nothing is sandboxed.
+- Packages the executor installs stay in your environment. Under `uv run` they are also added to `pyproject.toml` and `uv.lock`, so check the diff after a run.
 - Web searches cost OpenRouter credit on top of the model tokens.
+- With `--bench`, the executor drives real hardware. Every bench step needs your approval, but within an approved step it can make up to 12 hardware turns without asking again.

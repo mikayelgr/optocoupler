@@ -1,19 +1,43 @@
 [project]
 name = "photonicsai-solver-chain"
 version = "0.1.0"
-description = "Multi-agent LangGraph system (orchestrator, scientist, general, executor) that solves the Silverbox PINN task with OpenRouter models"
+description = "Multi-agent LangGraph system (orchestrator, scientist, general, executor) with OpenRouter models, a human-in-the-loop stop and an MCP light bench"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "langchain>=1.4.3",
+    # The pipeline (chain/)
     "langgraph>=1.2.14",
+    "langchain-core>=1.6",
     "langchain-openrouter",
+    "pydantic>=2.12",
     "pymupdf>=1.28.2",
     "rich>=15.0.0",
-    "numpy>=2.5.3",
-    "torch>=2.14.1",
-    "scipy>=1.18.1",
-    "h5py>=3.16.0",
+    # The light bench: MCP client and server (bench/server.py), Pico serial link, phyphox HTTP API.
+    # The `cli` extra adds `mcp dev` / `mcp run` for testing the server on its own.
+    "mcp[cli]>=2.3.0",
+    "pyserial>=3.5",
     "requests>=2.34.2",
-    "nonlinear-benchmarks>=1.0.1",
+    # Copies firmware/main.py to the Pico (docs/bench-setup.md)
+    "mpremote>=1.29.0",
+    # Libraries the executor's scripts use for the Silverbox task (the executor installs others as it needs them)
+    "numpy>=2.5.3",
+    "scipy>=1.18.1",
+    "torch>=2.14.1",
 ]
+
+# Installable with pip as well as uv: `pip install -e .` installs the pipeline (chain/) and everything above.
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["chain"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

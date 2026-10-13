@@ -9,3 +9,12 @@ wheels/
 # Virtual environments
 .venv
 OUTPUT.md
+
+# macOS
+.DS_Store
+
+# Data copied into reused working directories at run time (the original is task/SNLS80mV.mat)
+runs/*/SNLS80mV.mat
+
+# Test cache
+.pytest_cache/

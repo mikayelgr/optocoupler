@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 300" width="940" height="300" role="img" aria-label="The light bench: the computer runs the pipeline and the bench server; it drives the Pico over a USB data cable, the Pico dims the LED on GP15, the LED shines on the phone&#x27;s light sensor, and phyphox on the phone sends readings back over adb&#x27;s USB port forward or over Wi-Fi.">
+<title>The light bench: the computer runs the pipeline and the bench server; it drives the Pico over a USB data cable, the Pico dims the LED on GP15, the LED shines on the phone&#x27;s light sensor, and phyphox on the phone sends readings back over adb&#x27;s USB port forward or over Wi-Fi.</title>
+<style>
+  .bg { fill: #ffffff; }
+  .frame { fill: none; stroke: #8c959f; stroke-width: 1.25; stroke-dasharray: 6 4; }
+  .box { fill: #f6f8fa; stroke: #8c959f; stroke-width: 1.25; }
+  .hub { fill: #ddf4ff; stroke: #0969da; stroke-width: 1.75; }
+  .exe { fill: #fff8c5; stroke: #9a6700; stroke-width: 1.75; }
+  .tool { fill: #ffffff; stroke: #9a6700; stroke-width: 1.25; }
+  .ok { fill: #dafbe1; stroke: #1a7f37; stroke-width: 1.75; }
+  .warn { fill: #fff1e5; stroke: #bc4c00; stroke-width: 1.5; }
+  .file { fill: #ffffff; stroke: #8c959f; stroke-width: 1.25; }
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .t { fill: #1f2328; font-size: 14px; font-weight: 600; }
+  .s { fill: #59636e; font-size: 12.5px; }
+  .lb { fill: #59636e; font-size: 12px; font-style: italic; }
+  .hd { fill: #59636e; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; }
+  .m { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .ln { fill: none; stroke: #59636e; stroke-width: 1.5; }
+  .ln-ok { fill: none; stroke: #1a7f37; stroke-width: 1.75; }
+  .ln-warn { fill: none; stroke: #bc4c00; stroke-width: 1.5; }
+  .ln-exe { fill: none; stroke: #9a6700; stroke-width: 1.5; }
+  .dash { stroke-dasharray: 5 4; }
+  .ah { fill: #59636e; } .ah-ok { fill: #1a7f37; } .ah-warn { fill: #bc4c00; } .ah-exe { fill: #9a6700; }
+  .grid { stroke: #d1d9e0; stroke-width: 1; }
+  .axis { stroke: #8c959f; stroke-width: 1; }
+  .s1 { fill: none; stroke: #0969da; stroke-width: 2; stroke-linejoin: round; }
+  .s2 { fill: none; stroke: #bc4c00; stroke-width: 2; stroke-linejoin: round; }
+  .k1 { fill: #0969da; } .k2 { fill: #bc4c00; }
+  .dot-old { fill: #ffffff; stroke: #59636e; stroke-width: 2; }
+  .dot-new { fill: #59636e; stroke: #ffffff; stroke-width: 2; }
+  .led { fill: #fff8c5; stroke: #9a6700; stroke-width: 1.5; }
+  .wire { fill: none; stroke: #1f2328; stroke-width: 2; }
+  .pin { fill: #1f2328; }
+  @media (prefers-color-scheme: dark) {
+    .bg { fill: #0d1117; }
+    .frame { stroke: #656c76; }
+    .box { fill: #151b23; stroke: #656c76; }
+    .hub { fill: #0c2d6b; stroke: #4493f8; }
+    .exe { fill: #3a2d05; stroke: #d29922; }
+    .tool { fill: #0d1117; stroke: #d29922; }
+    .ok { fill: #04260f; stroke: #3fb950; }
+    .warn { fill: #3d1d08; stroke: #f0883e; }
+    .file { fill: #0d1117; stroke: #656c76; }
+    .t { fill: #e6edf3; }
+    .s, .lb, .hd { fill: #9198a1; }
+    .ln { stroke: #9198a1; } .ln-ok { stroke: #3fb950; } .ln-warn { stroke: #f0883e; } .ln-exe { stroke: #d29922; }
+    .ah { fill: #9198a1; } .ah-ok { fill: #3fb950; } .ah-warn { fill: #f0883e; } .ah-exe { fill: #d29922; }
+    .grid { stroke: #262c36; }
+    .axis { stroke: #656c76; }
+    .s1 { stroke: #4493f8; } .s2 { stroke: #db6d28; }
+    .k1 { fill: #4493f8; } .k2 { fill: #db6d28; }
+    .dot-old { fill: #0d1117; stroke: #9198a1; }
+    .dot-new { fill: #9198a1; stroke: #0d1117; }
+    .led { fill: #3a2d05; stroke: #d29922; }
+    .wire { stroke: #e6edf3; }
+    .pin { fill: #e6edf3; }
+  }
+</style>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker><marker id="ah-ok" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="ah-ok" d="M0,0 L10,5 L0,10 z"/></marker><marker id="ah-warn" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="ah-warn" d="M0,0 L10,5 L0,10 z"/></marker><marker id="ah-exe" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="ah-exe" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="bg" x="0" y="0" width="940" height="300" rx="12"/>
+<rect class="hub" x="20" y="80" width="220" height="110" rx="10"/>
+<text class="t" x="130.0" y="122.5" text-anchor="middle">your computer</text>
+<text class="s" x="130.0" y="140.5" text-anchor="middle">pipeline + bench/server.py</text>
+<text class="s" x="130.0" y="157.5" text-anchor="middle">uv run python . --bench</text>
+<rect class="box" x="420" y="30" width="200" height="80" rx="10"/>
+<text class="t" x="520.0" y="57.5" text-anchor="middle">Raspberry Pi Pico</text>
+<text class="s" x="520.0" y="75.5" text-anchor="middle">MicroPython,</text>
+<text class="s" x="520.0" y="92.5" text-anchor="middle">firmware/main.py</text>
+<rect class="led" x="740" y="30" width="170" height="80" rx="10"/>
+<text class="t" x="825.0" y="57.5" text-anchor="middle">LED</text>
+<text class="s" x="825.0" y="75.5" text-anchor="middle">on GP15, through</text>
+<text class="s" x="825.0" y="92.5" text-anchor="middle">a 220–330 Ω resistor</text>
+<rect class="box" x="420" y="190" width="200" height="80" rx="10"/>
+<text class="t" x="520.0" y="217.5" text-anchor="middle">Android phone</text>
+<text class="s" x="520.0" y="235.5" text-anchor="middle">phyphox, Light experiment,</text>
+<text class="s" x="520.0" y="252.5" text-anchor="middle">remote access on</text>
+<path class="ln" d="M240,110 L330,110 L330,70 L420,70" marker-end="url(#ah)"/>
+<text class="lb" x="320" y="96" text-anchor="end">USB serial</text>
+<path class="ln" d="M620,70 L740,70" marker-end="url(#ah)"/>
+<text class="lb" x="680" y="62" text-anchor="middle">PWM</text>
+<path class="ln-exe dash" d="M825,110 L825,230 L620,230" marker-end="url(#ah-exe)"/>
+<text class="lb" x="835" y="175" text-anchor="start">light on the sensor</text>
+<path class="ln" d="M420,230 L330,230 L330,165 L240,165" marker-end="url(#ah)"/>
+<text class="lb" x="320" y="212" text-anchor="end">lux over HTTP</text>
+<text class="s" x="320" y="228" text-anchor="end">adb forward or Wi-Fi</text>
+</svg>

@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 270" width="700" height="270" role="img" aria-label="LED wiring: Pico pin GP15 (physical pin 20) goes through a 220 to 330 ohm resistor to the LED&#x27;s long leg (anode); the LED&#x27;s short leg (cathode) goes back to a Pico GND pin such as pin 18.">
+<title>LED wiring: Pico pin GP15 (physical pin 20) goes through a 220 to 330 ohm resistor to the LED&#x27;s long leg (anode); the LED&#x27;s short leg (cathode) goes back to a Pico GND pin such as pin 18.</title>
+<style>
+  .bg { fill: #ffffff; }
+  .frame { fill: none; stroke: #8c959f; stroke-width: 1.25; stroke-dasharray: 6 4; }
+  .box { fill: #f6f8fa; stroke: #8c959f; stroke-width: 1.25; }
+  .hub { fill: #ddf4ff; stroke: #0969da; stroke-width: 1.75; }
+  .exe { fill: #fff8c5; stroke: #9a6700; stroke-width: 1.75; }
+  .tool { fill: #ffffff; stroke: #9a6700; stroke-width: 1.25; }
+  .ok { fill: #dafbe1; stroke: #1a7f37; stroke-width: 1.75; }
+  .warn { fill: #fff1e5; stroke: #bc4c00; stroke-width: 1.5; }
+  .file { fill: #ffffff; stroke: #8c959f; stroke-width: 1.25; }
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .t { fill: #1f2328; font-size: 14px; font-weight: 600; }
+  .s { fill: #59636e; font-size: 12.5px; }
+  .lb { fill: #59636e; font-size: 12px; font-style: italic; }
+  .hd { fill: #59636e; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; }
+  .m { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .ln { fill: none; stroke: #59636e; stroke-width: 1.5; }
+  .ln-ok { fill: none; stroke: #1a7f37; stroke-width: 1.75; }
+  .ln-warn { fill: none; stroke: #bc4c00; stroke-width: 1.5; }
+  .ln-exe { fill: none; stroke: #9a6700; stroke-width: 1.5; }
+  .dash { stroke-dasharray: 5 4; }
+  .ah { fill: #59636e; } .ah-ok { fill: #1a7f37; } .ah-warn { fill: #bc4c00; } .ah-exe { fill: #9a6700; }
+  .grid { stroke: #d1d9e0; stroke-width: 1; }
+  .axis { stroke: #8c959f; stroke-width: 1; }
+  .s1 { fill: none; stroke: #0969da; stroke-width: 2; stroke-linejoin: round; }
+  .s2 { fill: none; stroke: #bc4c00; stroke-width: 2; stroke-linejoin: round; }
+  .k1 { fill: #0969da; } .k2 { fill: #bc4c00; }
+  .dot-old { fill: #ffffff; stroke: #59636e; stroke-width: 2; }
+  .dot-new { fill: #59636e; stroke: #ffffff; stroke-width: 2; }
+  .led { fill: #fff8c5; stroke: #9a6700; stroke-width: 1.5; }
+  .wire { fill: none; stroke: #1f2328; stroke-width: 2; }
+  .pin { fill: #1f2328; }
+  @media (prefers-color-scheme: dark) {
+    .bg { fill: #0d1117; }
+    .frame { stroke: #656c76; }
+    .box { fill: #151b23; stroke: #656c76; }
+    .hub { fill: #0c2d6b; stroke: #4493f8; }
+    .exe { fill: #3a2d05; stroke: #d29922; }
+    .tool { fill: #0d1117; stroke: #d29922; }
+    .ok { fill: #04260f; stroke: #3fb950; }
+    .warn { fill: #3d1d08; stroke: #f0883e; }
+    .file { fill: #0d1117; stroke: #656c76; }
+    .t { fill: #e6edf3; }
+    .s, .lb, .hd { fill: #9198a1; }
+    .ln { stroke: #9198a1; } .ln-ok { stroke: #3fb950; } .ln-warn { stroke: #f0883e; } .ln-exe { stroke: #d29922; }
+    .ah { fill: #9198a1; } .ah-ok { fill: #3fb950; } .ah-warn { fill: #f0883e; } .ah-exe { fill: #d29922; }
+    .grid { stroke: #262c36; }
+    .axis { stroke: #656c76; }
+    .s1 { stroke: #4493f8; } .s2 { stroke: #db6d28; }
+    .k1 { fill: #4493f8; } .k2 { fill: #db6d28; }
+    .dot-old { fill: #0d1117; stroke: #9198a1; }
+    .dot-new { fill: #9198a1; stroke: #0d1117; }
+    .led { fill: #3a2d05; stroke: #d29922; }
+    .wire { stroke: #e6edf3; }
+    .pin { fill: #e6edf3; }
+  }
+</style>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker><marker id="ah-ok" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="ah-ok" d="M0,0 L10,5 L0,10 z"/></marker><marker id="ah-warn" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="ah-warn" d="M0,0 L10,5 L0,10 z"/></marker><marker id="ah-exe" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="ah-exe" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="bg" x="0" y="0" width="700" height="270" rx="12"/>
+<rect class="box" x="20" y="40" width="200" height="180" rx="8"/>
+<text class="t" x="120.0" y="126.0" text-anchor="middle">Raspberry Pi Pico</text>
+<text class="s" x="120.0" y="144.0" text-anchor="middle">USB to your computer</text>
+<circle class="pin" cx="220" cy="90" r="5"/>
+<text class="s" x="210" y="80" text-anchor="end">GP15 · pin 20</text>
+<circle class="pin" cx="220" cy="190" r="5"/>
+<text class="s" x="210" y="180" text-anchor="end">GND · pin 18</text>
+<path class="wire" d="M220,90 L340,90 L340,90 L350,82 L360,98 L370,82 L380,98 L390,82 L400,98 L410,82 L420,90 L520,90 L520,120"/>
+<text class="t" x="380" y="70" text-anchor="middle">220–330 Ω</text>
+<polygon class="led" points="505,120 535,120 520,145"/>
+<line class="wire" x1="503" y1="147" x2="537" y2="147"/>
+<path class="ln-exe" d="M545,125 L565,112" marker-end="url(#ah-exe)"/>
+<path class="ln-exe" d="M550,138 L570,125" marker-end="url(#ah-exe)"/>
+<path class="wire" d="M520,147 L520,190 L220,190"/>
+<text class="s" x="545" y="105" text-anchor="start">long leg (anode)</text>
+<text class="s" x="545" y="165" text-anchor="start">short leg (cathode)</text>
+<text class="s" x="360" y="252" text-anchor="middle">Any GND pin works (18, 23, 28, 38, …). Another GPIO: change LED_PIN in firmware/main.py.</text>
+</svg>
