@@ -8,13 +8,16 @@ import shutil
 import subprocess
 import tempfile
 import time
+import uuid
 from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, StateGraph
+from langgraph.types import Command, interrupt
 from langchain_openrouter import ChatOpenRouter
 from rich.console import Console
 from rich.panel import Panel
@@ -27,7 +30,7 @@ console = Console()
 
 PROJECT_DIR = Path(__file__).parent
 PROMPTS_DIR = PROJECT_DIR / "prompts"
-WORK_DIR = Path(tempfile.mkdtemp(prefix="photonics_"))
+WORK_DIR: Path  # set at startup: --workdir, or a fresh temp directory
 
 MESSAGE = dict[str, str]
 
@@ -38,6 +41,8 @@ COLORS = {
     "executor": "bold yellow",
     "summarizer": "bold blue",
     "web search": "bold yellow",
+    "human": "bold red",
+    "system": "dim",
 }
 
 MAX_DECISIONS = 8  # Task 6 limit; 0 means no limit. Set with --max-decisions.
@@ -50,8 +55,30 @@ class DialogueState(BaseModel):
 
 
 class OrchestratorDecision(BaseModel):
-    next_role: Literal["scientist", "general", "executor", "finish"]
+    next_role: Literal["scientist", "general", "executor", "human", "finish"]
+    stop_kind: Literal["none", "ambiguous_query", "hard_decision"]
+    pending_step: Literal["none", "executor", "finish"]
     instruction: str
+    question: str
+    reason: str
+
+    @property
+    def is_hard_decision(self) -> bool:
+        return (
+            self.next_role == "human"
+            and self.stop_kind == "hard_decision"
+            and self.pending_step != "none"
+        )
+
+    @property
+    def wants_finish(self) -> bool:
+        return self.next_role == "finish" or (
+            self.is_hard_decision and self.pending_step == "finish"
+        )
+
+
+class HumanVerdict(BaseModel):
+    approved: bool
     reason: str
 
 
@@ -61,6 +88,18 @@ PROMPT_MAP = {
     "general": (PROMPTS_DIR / "gen.md").read_text(),
     "executor": (PROMPTS_DIR / "exe.md").read_text(),
 }
+
+HUMAN_NOTE = """
+
+## Human Replies
+
+The orchestrator can stop and ask the user a question. The question is in the orchestrator message (`question`),
+the user's answer follows it as a message with role `human`, and a refused step is recorded in a `system` message.
+A `human` message is the user speaking: when it picks a reading of the request, follow that reading. A step the
+user refused did not run, so do not act as if it did.
+"""
+for _role in ("scientist", "general", "executor"):
+    PROMPT_MAP[_role] += HUMAN_NOTE
 
 
 DATA_FILE = PROJECT_DIR / "SNLS80mV.mat"
@@ -158,7 +197,10 @@ _script_counter = itertools.count(1)
 
 
 def code_tool(code: str, timeout: int = 300) -> tuple[int, str, str]:
+    # Skip numbers already used, so a reused --workdir never overwrites an earlier script.
     file_path = WORK_DIR / f"script_{next(_script_counter):03d}.py"
+    while file_path.exists():
+        file_path = WORK_DIR / f"script_{next(_script_counter):03d}.py"
     file_path.write_text(code, encoding="utf-8")
     try:
         result = subprocess.run(
@@ -256,14 +298,14 @@ def _has_verified_rmse(messages: list[MESSAGE]) -> bool:
 ORCHESTRATOR_MAX_CONTEXT = 200_000
 
 
-def _restart_orchestrator():
+def _restart_orchestrator(schema: type[BaseModel] = OrchestratorDecision):
     return ChatOpenRouter(
         model="google/gemma-4-31b-it",
         temperature=0.2,
         max_tokens=ORCHESTRATOR_MAX_CONTEXT,
         streaming=False,
         plugins=[{"id": "context-compression", "enabled": True}],
-    ).with_structured_output(OrchestratorDecision, method="json_schema")
+    ).with_structured_output(schema, method="json_schema")
 
 
 def _trim_dialogue(messages: list[MESSAGE], max_chars: int = 50000) -> list[MESSAGE]:
@@ -273,14 +315,18 @@ def _trim_dialogue(messages: list[MESSAGE], max_chars: int = 50000) -> list[MESS
     return trimmed
 
 
-def _decide(prompt: str) -> OrchestratorDecision:
-    model = _restart_orchestrator()
+def _decide(
+    prompt: str,
+    schema: type[BaseModel] = OrchestratorDecision,
+    status: str = "Orchestrator deciding...",
+):
+    model = _restart_orchestrator(schema)
     attempt = 1
     max_backoff = 300
     while True:
         try:
             with console.status(
-                f"[{COLORS['orchestrator']}]Orchestrator deciding...[/]",
+                f"[{COLORS['orchestrator']}]{status}[/]",
                 spinner="dots",
             ):
                 return model.invoke([HumanMessage(content=prompt)])
@@ -300,15 +346,21 @@ def _decide(prompt: str) -> OrchestratorDecision:
                     border_style="yellow",
                 )
             )
-            model = _restart_orchestrator()
+            model = _restart_orchestrator(schema)
             time.sleep(backoff)
             attempt += 1
 
 
 FINISH_REJECTED_NOTE = """
-Your previous decision was `finish`, and it was rejected: the most recent executor turn does not contain
-a test RMSE printed by a script that ran successfully. Choose scientist, general or executor instead.
+Your previous decision was to finish (directly, or as the pending step of a hard decision), and it was rejected:
+the most recent executor turn does not contain a test RMSE printed by a script that ran successfully. Choose
+scientist, general, executor, or human with a different pending step instead.
 """
+
+FALLBACK_INSTRUCTION = (
+    "Implement the latest scientist plan, downloading any missing data into the "
+    "working directory first, and print the free-run test RMSE."
+)
 
 
 def orchestrator_node(state: DialogueState) -> dict:
@@ -330,7 +382,7 @@ def orchestrator_node(state: DialogueState) -> dict:
     decision = _decide(prompt)
     verified = _has_verified_rmse(state.messages)
     for _ in range(FINISH_REJECTIONS):
-        if decision.next_role != "finish" or verified:
+        if not decision.wants_finish or verified:
             break
         console.print(
             Panel(
@@ -340,15 +392,27 @@ def orchestrator_node(state: DialogueState) -> dict:
             )
         )
         decision = _decide(prompt + FINISH_REJECTED_NOTE)
-    if decision.next_role == "finish" and not verified:
+    if decision.wants_finish and not verified:
+        # Running the coding tool is itself a hard decision, so the override asks first.
         decision = OrchestratorDecision(
-            next_role="executor",
-            instruction=(
-                "Implement the latest scientist plan, downloading any missing data into the "
-                "working directory first, and print the free-run test RMSE."
+            next_role="human",
+            stop_kind="hard_decision",
+            pending_step="executor",
+            instruction=FALLBACK_INSTRUCTION,
+            question=(
+                "No script has printed a verified test RMSE yet, so the dialogue cannot end. "
+                f"The next step runs the coding tool: the executor will {FALLBACK_INSTRUCTION[0].lower()}"
+                f"{FALLBACK_INSTRUCTION[1:]} Proceed?"
             ),
             reason="Finishing is not allowed until an executor run has printed a test RMSE.",
         )
+    if decision.next_role != "human":
+        decision = decision.model_copy(
+            update={"stop_kind": "none", "pending_step": "none", "question": ""}
+        )
+    elif decision.stop_kind == "hard_decision" and decision.pending_step == "none":
+        # A hard decision with no step to run can only be answered, like a query.
+        decision = decision.model_copy(update={"stop_kind": "ambiguous_query"})
 
     table = Table(
         title=f"[{COLORS['orchestrator']}]Orchestrator Decision {number}[/]",
@@ -361,7 +425,13 @@ def orchestrator_node(state: DialogueState) -> dict:
         "Next Role",
         f"[{COLORS.get(decision.next_role, 'white')}]{decision.next_role}[/]",
     )
-    table.add_row("Instruction", decision.instruction)
+    if decision.next_role == "human":
+        table.add_row("Stop", decision.stop_kind.replace("_", " "))
+        if decision.is_hard_decision:
+            table.add_row("Pending Step", decision.pending_step)
+        table.add_row("Question", decision.question)
+    if decision.instruction:
+        table.add_row("Instruction", decision.instruction)
     table.add_row("Reason", decision.reason)
     console.print(table)
 
@@ -516,9 +586,98 @@ def executor_node(state: DialogueState) -> dict:
     return {"messages": [{"role": "executor", "text": search_summary + result_text}]}
 
 
+def _last_decision(messages: list[MESSAGE]) -> OrchestratorDecision:
+    for msg in reversed(messages):
+        if msg.get("role") == "orchestrator":
+            return OrchestratorDecision.model_validate_json(msg["text"])
+    raise ValueError("No orchestrator decision in the dialogue.")
+
+
+VERDICT_PROMPT = """The orchestrator of a multi-agent team stopped and asked the user whether to carry out one step.
+
+Step: {step}
+Instruction for that step: {instruction}
+Question asked: {question}
+User's reply: {reply}
+
+Did the user approve carrying out this step now? `approved` is true only if the reply clearly agrees to it.
+A reply that refuses, postpones, asks for a different step or for changes to this one, or only asks a question
+is not an approval. `reason` is one sentence."""
+
+
+def _judge_reply(decision: OrchestratorDecision, reply: str) -> HumanVerdict:
+    prompt = VERDICT_PROMPT.format(
+        step=decision.pending_step,
+        instruction=decision.instruction,
+        question=decision.question,
+        reply=reply,
+    )
+    return _decide(prompt, schema=HumanVerdict, status="Reading the reply...")
+
+
+def _refusal_note(decision: OrchestratorDecision) -> str:
+    if decision.pending_step == "finish":
+        effect = "The dialogue did not end and no measurement was reported."
+    else:
+        effect = "The executor was not called: no script was written or run, and no file on disk changed."
+    return (
+        f"Step refused by the user, so it did not run. Refused step ({decision.pending_step}): "
+        f"\"{decision.instruction}\". {effect} The turn returns to the orchestrator."
+    )
+
+
+def human_node(
+    state: DialogueState,
+) -> Command[Literal["orchestrator", "executor", "__end__"]]:
+    # The node reruns from the top on resume, so everything before interrupt() only reads state.
+    decision = _last_decision(state.messages)
+    hard = decision.is_hard_decision
+    reply = interrupt(
+        {
+            "kind": "hard_decision" if hard else "ambiguous_query",
+            "question": decision.question,
+            "reason": decision.reason,
+            "pending_step": decision.pending_step if hard else "none",
+            "instruction": decision.instruction if hard else "",
+        }
+    )
+    reply = str(reply).strip()
+    messages = [{"role": "human", "text": reply}]
+    back = (
+        END
+        if MAX_DECISIONS and _decision_count(state.messages) >= MAX_DECISIONS
+        else "orchestrator"
+    )
+    if not hard:
+        return Command(update={"messages": messages}, goto=back)
+
+    verdict = _judge_reply(decision, reply)
+    if verdict.approved:
+        console.print(
+            Panel(
+                f"{verdict.reason}\nRunning: {decision.pending_step}",
+                title=f"[{COLORS['human']}]HUMAN · ACCEPTED[/]",
+                border_style="green",
+            )
+        )
+        goto = END if decision.pending_step == "finish" else decision.pending_step
+        return Command(update={"messages": messages}, goto=goto)
+
+    note = _refusal_note(decision)
+    console.print(
+        Panel(
+            f"{verdict.reason}\n{note}",
+            title=f"[{COLORS['human']}]HUMAN · REFUSED[/]",
+            border_style="red",
+        )
+    )
+    messages.append({"role": "system", "text": note})
+    return Command(update={"messages": messages}, goto=back)
+
+
 def route_decision(
     state: DialogueState,
-) -> Literal["scientist", "general", "executor", "finish"]:
+) -> Literal["scientist", "general", "executor", "human", "finish"]:
     last = state.messages[-1] if state.messages else {"text": "{}"}
     try:
         d = json.loads(last.get("text", "{}"))
@@ -541,24 +700,13 @@ BANNER = r"""
 """.strip()
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Photonics AI Solver Chain")
-    parser.add_argument(
-        "--max-decisions",
-        type=int,
-        default=MAX_DECISIONS,
-        help="orchestrator decision limit (default: %(default)s, per Task 6); 0 means no limit",
-    )
-    MAX_DECISIONS = parser.parse_args().max_decisions
-
-    console.print(Panel(BANNER, style="bold cyan", border_style="cyan"))
-    provide_data_file()
-
+def build_graph():
     graph = StateGraph(DialogueState)
     graph.add_node("orchestrator", orchestrator_node)
     graph.add_node("scientist", scientist_node)
     graph.add_node("general", general_node)
     graph.add_node("executor", executor_node)
+    graph.add_node("human", human_node)
 
     graph.add_conditional_edges(
         "orchestrator",
@@ -567,6 +715,7 @@ if __name__ == "__main__":
             "scientist": "scientist",
             "general": "general",
             "executor": "executor",
+            "human": "human",
             "finish": END,
         },
     )
@@ -574,8 +723,98 @@ if __name__ == "__main__":
         graph.add_conditional_edges(
             role, route_after_turn, {"orchestrator": "orchestrator", "limit": END}
         )
+    # human routes itself with Command: back to the orchestrator, or on to an accepted step.
     graph.set_entry_point("orchestrator")
-    compiled = graph.compile()
+    # The checkpointer keeps a paused thread's state until it is resumed with the reply.
+    return graph.compile(checkpointer=InMemorySaver())
+
+
+def ask_human(payload: dict) -> str:
+    hard = payload["kind"] == "hard_decision"
+    body = Text()
+    body.append(
+        "Hard decision\n" if hard else "Ambiguous query\n", style=COLORS["human"]
+    )
+    body.append(f"\n{payload['question']}\n", style="bold white")
+    if hard:
+        body.append(f"\nPending step: {payload['pending_step']}\n", style="white")
+        body.append(f"Instruction: {payload['instruction']}\n", style="dim")
+    body.append(f"\nWhy: {payload['reason']}", style="dim")
+    console.print(
+        Panel(
+            body,
+            title=f"[{COLORS['human']}]HUMAN INPUT NEEDED · graph paused[/]",
+            subtitle="[dim]type your reply; Ctrl+C stops the run[/]",
+            border_style="red",
+        )
+    )
+    while True:
+        reply = console.input(f"[{COLORS['human']}]you › [/]").strip()
+        if reply:
+            return reply
+
+
+def run_thread(compiled, graph_input, config: dict, ask=ask_human) -> None:
+    """Run one thread until it ends, resuming it with the human's reply at every pause."""
+    while True:
+        for _ in compiled.stream(graph_input, config=config, stream_mode="values"):
+            pass
+        pending = compiled.get_state(config).interrupts
+        if not pending:
+            return
+        graph_input = Command(resume=ask(pending[0].value))
+
+
+def write_transcript(messages: list[MESSAGE], thread_id: str) -> Path:
+    path = Path("transcripts") / f"{thread_id}.md"
+    path.parent.mkdir(exist_ok=True)
+    parts = [f"# Transcript: thread `{thread_id}`\n"]
+    for number, msg in enumerate(messages, 1):
+        text = msg.get("text", "")
+        if msg.get("role") == "orchestrator":
+            text = "```json\n" + json.dumps(json.loads(text), indent=2) + "\n```"
+        parts.append(f"## {number}. {msg.get('role')}\n\n{text}\n")
+    path.write_text("\n".join(parts), encoding="utf-8")
+    return path
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Photonics AI Solver Chain")
+    parser.add_argument(
+        "--max-decisions",
+        type=int,
+        default=MAX_DECISIONS,
+        help="orchestrator decision limit (default: %(default)s, per Task 6); 0 means no limit",
+    )
+    parser.add_argument(
+        "--request",
+        help="your request to the orchestrator; task.pdf is then given as background. "
+        "Without it, task.pdf itself is the request",
+    )
+    parser.add_argument(
+        "--workdir",
+        type=Path,
+        help="working directory to use (and keep results in) across runs; default: a new temp directory",
+    )
+    parser.add_argument(
+        "--thread",
+        default=None,
+        help="LangGraph thread id (default: a new one per run)",
+    )
+    args = parser.parse_args()
+    MAX_DECISIONS = args.max_decisions
+    if args.workdir:
+        WORK_DIR = args.workdir.resolve()
+        WORK_DIR.mkdir(parents=True, exist_ok=True)
+    else:
+        WORK_DIR = Path(tempfile.mkdtemp(prefix="photonics_"))
+    thread_id = args.thread or f"run-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
+
+    console.print(Panel(BANNER, style="bold cyan", border_style="cyan"))
+    console.print(f"[dim]Thread: {thread_id}   Working directory: {WORK_DIR}[/]")
+    provide_data_file()
+
+    compiled = build_graph()
 
     import pymupdf
 
@@ -590,17 +829,24 @@ if __name__ == "__main__":
     else:
         user_text = "Perform Task 5: differential equation, network plan, script, and test RMSE."
 
-    initial_state: DialogueState = DialogueState(
-        messages=[{"role": "user", "text": user_text}]
-    )
+    if args.request:
+        messages = [
+            {"role": "user", "text": "Background, the Homework 1 task this team works on:\n\n" + user_text},
+            {"role": "user", "text": args.request},
+        ]
+    else:
+        messages = [{"role": "user", "text": user_text}]
+    initial_state: DialogueState = DialogueState(messages=messages)
+    config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 10_000}
 
-    final_state = None
     try:
-        for step in compiled.stream(
-            initial_state, config={"recursion_limit": 10_000}, stream_mode="values"
+        run_thread(compiled, initial_state, config)
+        final_messages = compiled.get_state(config).values["messages"]
+        if (
+            MAX_DECISIONS
+            and _decision_count(final_messages) >= MAX_DECISIONS
+            and not _has_verified_rmse(final_messages)
         ):
-            final_state = step
-        if final_state is not None and not _has_verified_rmse(final_state["messages"]):
             console.print(
                 Panel(
                     f"Decision limit ({MAX_DECISIONS}) reached without a verified test RMSE. "
@@ -609,7 +855,7 @@ if __name__ == "__main__":
                     border_style="yellow",
                 )
             )
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         console.print(
             Panel(
                 "Interrupted. Summarizing the work so far.",
@@ -634,6 +880,10 @@ if __name__ == "__main__":
             )
         )
 
+    final_messages = compiled.get_state(config).values.get("messages") or initial_state.messages
+    transcript_path = write_transcript(final_messages, thread_id)
+    console.print(f"[dim]Dialogue transcript saved to {transcript_path}[/]")
+
     # ── Final Summary ──
     console.print(
         Panel(
@@ -644,9 +894,6 @@ if __name__ == "__main__":
     )
 
     output_path = Path("OUTPUT.md")
-    final_messages = (
-        final_state["messages"] if final_state is not None else initial_state.messages
-    )
 
     if not final_messages:
         final_messages = [{"role": "system", "text": "No output produced."}]

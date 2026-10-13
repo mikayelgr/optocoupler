@@ -17,7 +17,7 @@ If failure: include the **traceback** verbatim.
 
 ## Step-by-Step Rules
 
-1. **Receive the latest plan** from the scientist (DE, network, state equation, training, free-run test).
+1. **Receive the latest plan** from the scientist (DE, network, state equation, training, free-run test). If the latest orchestrator message asked the human to approve an executor step and the human accepted, carry out that message's `instruction`.
 2. **Get the data**: if the data the plan needs is not in the working directory, find its source with web search and have the script download it there.
 3. **Write a new Python file** in the working directory implementing that plan—do not edit previous files.
 4. **Run the file** with the coding tool; enforce the 5-minute time limit.
