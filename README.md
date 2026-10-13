@@ -50,11 +50,11 @@ Two optional inputs live in `task/`:
 
 **The light bench** needs a Raspberry Pi Pico with an LED, and an Android phone running phyphox. Follow **[docs/bench-setup.md](docs/bench-setup.md)**; each step there ends with a check.
 
-![The light bench: the computer drives the Pico over USB serial, the Pico dims the LED, the LED shines on the phone's sensor, and phyphox sends readings back over adb or Wi-Fi.](docs/bench-hardware.svg)
+<p align="center"><img src="docs/bench-hardware.svg" alt="The light bench: the computer drives the Pico over USB serial, the Pico dims the LED, the LED shines on the phone's sensor, and phyphox sends readings back over adb or Wi-Fi." width="752"></p>
 
 The LED is wired from pin 20 (GP15) through a 220–330 Ω resistor, and back to a GND pin:
 
-![A Raspberry Pi Pico seen from the top, USB at the top edge: pin 20 (GP15), the bottom pin on the left side, goes through the resistor to the LED's long leg (anode); the short leg (cathode) goes back to pin 18 (GND), two pins above.](docs/pico-wiring.svg)
+<p align="center"><img src="docs/wiring.svg" alt="LED wiring, as a schematic and on a drawn Pico seen from the top: pin 20 (GP15), the bottom pin on the left side, goes through a 220–330 Ω resistor to the LED's long leg (anode); the short leg (cathode) goes back to pin 18 (GND), two pins above." width="720"></p>
 
 - **Automatic with `--bench`:** the MCP server starts and stops with the run. It finds the Pico, opens its serial port and starts the phyphox measurement. Don't run `mcp dev` or `mcp run` at the same time, or they hold the serial port.
 - **Yours, before each session:** keep phyphox open with the screen on, and run `adb forward tcp:8080 tcp:8080` (again whenever the phone reconnects). Or use Wi-Fi with `--phyphox-url`.
@@ -184,7 +184,7 @@ How it works:
 
 ### How a run ends
 
-![How a run ends: a finish is accepted only if the latest executor turn holds the required result; otherwise the orchestrator is asked again, then you are asked whether to run the executor. A decision limit, if set, and Ctrl+C at a prompt also end the run.](docs/termination.svg)
+<p align="center"><img src="docs/termination.svg" alt="How a run ends: a finish is accepted only if the latest executor turn holds the required result; otherwise the orchestrator is asked again, then you are asked whether to run the executor. A decision limit, if set, and Ctrl+C at a prompt also end the run." width="720"></p>
 
 A `finish` is accepted only when the most recent executor turn holds the required result:
 

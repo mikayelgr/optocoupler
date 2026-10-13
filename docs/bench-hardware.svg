@@ -80,7 +80,7 @@
 <path class="ln" d="M620,70 L740,70" marker-end="url(#ah)"/>
 <text class="lb" x="680" y="62" text-anchor="middle">PWM</text>
 <path class="ln-exe dash" d="M825,110 L825,230 L620,230" marker-end="url(#ah-exe)"/>
-<text class="lb" x="835" y="175" text-anchor="start">light on the sensor</text>
+<text class="lb" x="815" y="175" text-anchor="end">light on the sensor</text>
 <path class="ln" d="M420,230 L330,230 L330,165 L240,165" marker-end="url(#ah)"/>
 <text class="lb" x="320" y="212" text-anchor="end">lux over HTTP</text>
 <text class="s" x="320" y="228" text-anchor="end">adb forward or Wi-Fi</text>

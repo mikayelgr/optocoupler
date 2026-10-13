@@ -95,7 +95,7 @@
 <path class="ln" d="M400,368 L445,368" marker-end="url(#ah)"/>
 <rect class="warn" x="660" y="333" width="220" height="70" rx="10"/>
 <text class="t" x="770.0" y="364.0" text-anchor="middle">END · decision limit</text>
-<text class="s" x="770.0" y="382.0" text-anchor="middle">8 by default, 0 = none</text>
+<text class="s" x="770.0" y="382.0" text-anchor="middle">only with --max-decisions</text>
 <path class="ln-warn" d="M595,368 L660,368" marker-end="url(#ah-warn)"/>
 <text class="lb" x="627" y="360" text-anchor="middle">yes</text>
 <path class="ln" d="M520,413 L520,460 L110,460 L110,120" marker-end="url(#ah)"/>

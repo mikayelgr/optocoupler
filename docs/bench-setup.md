@@ -2,7 +2,7 @@
 
 The light bench lets the executor set an LED's brightness and measure the light level. You only need it for `--bench` runs.
 
-![The light bench: the computer drives the Pico over USB serial, the Pico dims the LED, the LED shines on the phone's sensor, and phyphox sends readings back over adb or Wi-Fi.](bench-hardware.svg)
+<p align="center"><img src="bench-hardware.svg" alt="The light bench: the computer drives the Pico over USB serial, the Pico dims the LED, the LED shines on the phone's sensor, and phyphox sends readings back over adb or Wi-Fi." width="752"></p>
 
 - A **Raspberry Pi Pico** running MicroPython dims the LED with PWM. Commands go over USB serial.
 - An **Android phone** running phyphox measures the light in lux. Readings go over phyphox's HTTP remote access, through a USB port forward or over Wi-Fi.
@@ -42,9 +42,7 @@ The commands below are written for an activated environment, run from the projec
 
 The firmware drives the LED from **GP15**, which is physical pin 20.
 
-![LED wiring: GP15 (pin 20) through a 220–330 Ω resistor to the LED's long leg (anode); the short leg (cathode) back to GND (pin 18).](wiring.svg)
-
-![The same circuit on a drawn Pico, seen from the top with USB at the top edge: pin 20 (GP15), the bottom pin on the left side, goes through the resistor to the LED's long leg; the short leg goes back to pin 18 (GND), two pins above.](pico-wiring.svg)
+<p align="center"><img src="wiring.svg" alt="LED wiring, as a schematic and on a drawn Pico seen from the top: pin 20 (GP15), the bottom pin on the left side, goes through a 220–330 Ω resistor to the LED's long leg (anode); the short leg (cathode) goes back to pin 18 (GND), two pins above." width="720"></p>
 
 Any GND pin works (18, 23, 28, 38, …). To use another GPIO, change `LED_PIN` in [`firmware/main.py`](../firmware/main.py).
 
