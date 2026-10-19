@@ -1,5 +1,5 @@
 [project]
-name = "photonicsai-solver-chain"
+name = "optocoupler"
 version = "0.1.0"
 description = "Multi-agent LangGraph system (orchestrator, scientist, general, executor) with OpenRouter models, a human-in-the-loop stop and an MCP light bench"
 readme = "README.md"

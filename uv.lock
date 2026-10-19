@@ -1232,7 +1232,7 @@ wheels = [
 ]
 
 [[package]]
-name = "photonicsai-solver-chain"
+name = "optocoupler"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

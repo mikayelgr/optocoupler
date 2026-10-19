@@ -24,14 +24,14 @@ from .state import DialogueState, decision_count, load_scope
 
 BANNER = r"""
 ╔═════════════════════════════════════════════════════════╗
-║            Photonics AI Solver Chain                    ║
+║                       Optocoupler                       ║
 ║          multi-agent research pipeline                  ║
 ╚═════════════════════════════════════════════════════════╝
 """.strip()
 
 
 def parse_args() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
-    parser = argparse.ArgumentParser(prog="python .", description="Photonics AI Solver Chain")
+    parser = argparse.ArgumentParser(prog="python .", description="Optocoupler: a multi-agent research team wired to a real light bench")
     parser.add_argument(
         "--request",
         help="your request to the team, for scripted runs. Without it (and without --task), you type the "

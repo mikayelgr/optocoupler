@@ -1,4 +1,6 @@
-# Photonics AI Solver Chain
+# Optocoupler
+
+An optocoupler links two circuits with nothing but light: an LED on one side, a light sensor on the other. This project does the same for an AI team and real devices: a Pico drives an LED, a phone's light sensor reads it, and four AI roles sit in the loop between them.
 
 You type a request, and a team of four AI roles works on it together in one shared dialogue:
 

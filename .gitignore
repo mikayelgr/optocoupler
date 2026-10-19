@@ -18,3 +18,5 @@ runs/*/SNLS80mV.mat
 
 # Test cache
 .pytest_cache/
+
+transcripts/
